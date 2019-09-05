@@ -49,14 +49,16 @@ shinyApp(
                          "Filtros por Cliente", tabName = "selecaoPlotCliente", icon = icon("filter"),
                          selectInput("varPlotX", "Eixo X:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 1]),
                          selectInput("varPlotY", "Eixo Y:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 2]),
-                         selectInput("varPlotZ", "Eixo Z:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 3])
+                         selectInput("varPlotZ", "Eixo Z:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 3]),
+                         checkboxInput("transfExpClnt", "Transformação Exponencial")
                        ),
                        menuItem(
                          "Filtros por Cluster", tabName = "selecaoPlotCluster", icon = icon("filter"),
                          selectInput("varPlotBox", "Variável Box Plot:", variaveisClusters),
                          selectInput("clusterX", "Eixo X Cluster:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 1]),
                          selectInput("clusterY", "Eixo Y Cluster:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 2]),
-                         selectInput("clusterZ", "Eixo Z Cluster:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 3])
+                         selectInput("clusterZ", "Eixo Z Cluster:", variaveisClusters, selected = variaveisClusters[length(variaveisClusters) - 3]),
+                         checkboxInput("transfExpClst", "Transformação Exponencial")
                        )
                      )
     ),
@@ -166,6 +168,15 @@ shinyApp(
         dfPlot[, which(colnames(dfPlot) %in% variaveisClusters)]
       )
       
+      if(input$transfExpClnt) {
+        dfPlot <- dfPlot %>%
+          mutate(
+            .X = log(.X + 1),
+            .Y = log(.Y + 1),
+            .Z = log(.Z + 1)
+          )
+      }
+      
       plot_ly(dfPlot,
               x = ~.X, 
               y = ~.Y, 
@@ -202,6 +213,12 @@ shinyApp(
         .C = as.factor(dfPlotBox[, which(colnames(dfPlotBox) == "Cluster")]),
         .Y = dfPlotBox[, which(colnames(dfPlotBox) == input$varPlotBox)]
       )
+      
+      if(input$transfExpClst) {
+        dfPlotBox <- dfPlotBox %>%
+          mutate(.Y = log(.Y + 1))
+      }
+      
       ggplotBox <- ggplot(dfPlotBox, 
                           aes_string(x = ".C", y = ".Y", fill = ".C")) + 
         geom_boxplot()
@@ -216,7 +233,7 @@ shinyApp(
         stringsAsFactors = FALSE
       )
       
-      colunasUsar <- c("Cluster", input$clusterX, input$clusterY, input$clusterZ)
+      colunasUsar <- c("Cluster", input$varPlotX, input$varPlotY, input$varPlotZ)
       baseCluster <- baseCluster[, colunasUsar]
       
       baseCluster %>%
@@ -225,7 +242,7 @@ shinyApp(
         summarise_all(
           funs(
             MEDIA = mean,
-            MEDIANA = median, 
+            MDIANA = median, 
             Q1 = quantile(., probs = 0.25), 
             Q3 = quantile(., probs = 0.75))
         ) %>%
@@ -275,6 +292,16 @@ shinyApp(
         .C = baseClust[, which(colnames(baseClust) == "Cluster")],
         .S = (baseClust[, which(colnames(baseClust) == "PropGrupo")])
       )
+      
+      if(input$transfExpClst) {
+        dfPlot <- dfPlot %>%
+          mutate(
+            .X = log(.X + 1),
+            .Y = log(.Y + 1),
+            .Z = log(.Z + 1)
+          )
+      }
+      
       
       plot_ly(dfPlot,
               x = ~.X, 
@@ -371,16 +398,17 @@ shinyApp(
     # SAÍDAS APP: R TABELA NÃO-PARAMPETRICA (NÃO FORMATADA) ----
     output$dfNaoParm <- renderDataTable({
       nomesColunas <- colnames(dfNaoParm())
-      datatable(dfNaoParm(), extensions = 'FixedColumns',
+      datatable(dfNaoParm(), extensions = 'Buttons',
                 options = list(
-                  dom = 't',
+                  dom = 'Bfrtip',
                   scrollX = TRUE,
                   pageLength = 300,
-                  fixedColumns = TRUE
+                  fixedColumns = TRUE,
+                  buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
                 )) %>%
         formatRound(nomesColunas, digits = 3)
     })
-    
+
     # SAÍDAS APP: R GRÁFICO CLUSTER ----
     output$plotCluster <- renderPlotly({
       plotCluster()
@@ -389,12 +417,13 @@ shinyApp(
     # SAÍDAS APP: TABELA INFOS NÃO-PARAMÉTRICAS ABA POR CLIENTE ----
     output$dfNpPorCliente <- renderDataTable({
       nomesColunas <- colnames(dfNpPorCliente())
-      datatable(dfNpPorCliente(), extensions = 'FixedColumns',
+      datatable(dfNpPorCliente(), extensions = 'Buttons',
                 options = list(
-                  dom = 't',
+                  dom = 'Bfrtip',
                   scrollX = TRUE,
                   pageLength = 300,
-                  fixedColumns = TRUE
+                  fixedColumns = TRUE,
+                  buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
                 )) %>%
         formatRound(nomesColunas, digits = 3)
     })
