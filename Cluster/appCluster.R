@@ -1,3 +1,17 @@
+library(data.table)
+library(plotly)
+library(tidyverse)
+library(cluster)
+library(purrr)
+library(gridExtra)
+library(GGally)
+library(ggfortify)
+library(dendextend)
+library(combinat)
+
+
+library(reshape2)
+library(caret)
 library(tidyverse)
 library(shiny)
 library(ggplot2)
@@ -72,7 +86,8 @@ shinyApp(
                       fluidRow(plotlyOutput("plotSil"))
                   ),
                   box(title = "Freq Var Opcns (Q3)", width = 4,
-                      fluidRow(DT::dataTableOutput("dfMelhores"), width = 12)
+                      fluidRow(DT::dataTableOutput("dfMelhores"), width = 12),
+                      fluidRow(DT::dataTableOutput("dfVariaveisEscolhidas"), width = 12)
                   ),
                   box(title = "Tabela Sumário", width = 12,
                       fluidRow(DT::dataTableOutput("dfSumario"), width = 12)
@@ -118,7 +133,19 @@ shinyApp(
   # SERVER ----
   server = function(input, output) {
     # REACTIVE: 
-    # REACTIVE: DF NÃO-PARAMÉTRICA ----
+    # REACTIVE: VARIÁVEIS UTILIZADAS NO AGRUPAMENTO ----
+    dfVariaveisEscolhidas <- reactive({
+      indiceColunas <- input$cluster %>%
+        strsplit(., split = "<>") %>%
+        {.[[1]][1]} %>%
+        strsplit(., split = "\\|") %>%
+        unlist %>%
+        as.numeric
+      
+      data.frame(Variaveis = colnames(clusters$dfUtilizado)[indiceColunas], stringsAsFactors = FALSE)
+      
+    })
+      # REACTIVE: DF NÃO-PARAMÉTRICA ----
     dfNaoParm <- reactive({
       baseCluster <- data.frame(
         clusters[["dfUtilizado"]],
@@ -153,7 +180,7 @@ shinyApp(
       
     })
     
-    # REACTIVE: SCATTER 3D ----
+      # REACTIVE: SCATTER 3D ----
     plotCluster <- reactive({
       dfPlot <- data.frame(
         clusters[["dfUtilizado"]],
@@ -202,7 +229,7 @@ shinyApp(
       
     })
     
-    # REACTIVE: BOX-PLOT ----
+      # REACTIVE: BOX-PLOT ----
     plotBox <- reactive({
       dfPlotBox <- data.frame(
         clusters[["dfUtilizado"]],
@@ -225,7 +252,7 @@ shinyApp(
       ggplotly(ggplotBox)
     })
     
-    # REACTIVE: TABELA INFOS NÃO-PARAMÉTRICAS ABA POR CLIENTE ----
+      # REACTIVE: TABELA INFOS NÃO-PARAMÉTRICAS ABA POR CLIENTE ----
     dfNpPorCliente <- reactive({
       baseCluster <- data.frame(
         clusters[["dfUtilizado"]],
@@ -262,7 +289,7 @@ shinyApp(
         as.data.frame
       
     })
-    # REACTIVE: SCATTER POR CLUSTER ----
+      # REACTIVE: SCATTER POR CLUSTER ----
     plotPorCluster <- reactive({
       baseClust <- data.frame(
         clusters[["dfUtilizado"]],
@@ -327,7 +354,7 @@ shinyApp(
     })
     
     # NÃO-REACTIVE ----
-    # NÃO-REACTIVE: SCATTER + PLANO DOS CLUSTERS CANDIDATOS ----
+      # NÃO-REACTIVE: SCATTER + PLANO DOS CLUSTERS CANDIDATOS ----
     comparacaoClusters <- clusters$dfTodosCandidatos
     
     # MODELO PARA PLANO
@@ -376,12 +403,12 @@ shinyApp(
         type = 'surface', 
         alpha = 0.2)
     
-    # NÃO-REACTIVE: SUMÁRIO CLUSTERS ---- 
+      # NÃO-REACTIVE: SUMÁRIO CLUSTERS ---- 
     dfSumario <- clusters[["dfSumarioClusters"]]
     
     
     # SAÍDAS APP ----
-    # SAÍDAS APP: NR TABELA SUMARIO ----
+      # SAÍDAS APP: NR TABELA SUMARIO ----
     output$dfSumario <- renderDataTable({
       datatable(dfSumario,extensions = 'FixedColumns',
                 options = list(
@@ -390,12 +417,12 @@ shinyApp(
                   fixedColumns = TRUE
                 ))
     })
-    # SAÍDAS APP: NR GRAFICO SILHUETA ----
+      # SAÍDAS APP: NR GRAFICO SILHUETA ----
     output$plotSil <- renderPlotly({
       plotSilhueta
     })
     
-    # SAÍDAS APP: R TABELA NÃO-PARAMPETRICA (NÃO FORMATADA) ----
+      # SAÍDAS APP: R TABELA NÃO-PARAMPETRICA (NÃO FORMATADA) ----
     output$dfNaoParm <- renderDataTable({
       nomesColunas <- colnames(dfNaoParm())
       datatable(dfNaoParm(), extensions = 'Buttons',
@@ -409,12 +436,12 @@ shinyApp(
         formatRound(nomesColunas, digits = 3)
     })
 
-    # SAÍDAS APP: R GRÁFICO CLUSTER ----
+      # SAÍDAS APP: R GRÁFICO CLUSTER ----
     output$plotCluster <- renderPlotly({
       plotCluster()
     })
     
-    # SAÍDAS APP: TABELA INFOS NÃO-PARAMÉTRICAS ABA POR CLIENTE ----
+      # SAÍDAS APP: TABELA INFOS NÃO-PARAMÉTRICAS ABA POR CLIENTE ----
     output$dfNpPorCliente <- renderDataTable({
       nomesColunas <- colnames(dfNpPorCliente())
       datatable(dfNpPorCliente(), extensions = 'Buttons',
@@ -427,15 +454,25 @@ shinyApp(
                 )) %>%
         formatRound(nomesColunas, digits = 3)
     })
-    # SAÍDAS APP: R GRÁFICO BOX-PLOT ----
+      # SAÍDAS APP: R GRÁFICO BOX-PLOT ----
     output$plotBox <- renderPlotly({
       plotBox()
     })
-    # SAÍDAS APP: SCATTER POR CLUSTER ----
+      # SAÍDAS APP: SCATTER POR CLUSTER ----
     output$plotPorCluster <- renderPlotly({
       plotPorCluster()
     })
-    # SAÍDAS APP: VARIÁVEIS RECORRENTES MELHORES CLUSTERS (Q3) ----
+    
+      # SAÍDAS APP: VARIÁVEIS UTILIZADAS NO CLUSTER ----
+    output$dfVariaveisEscolhidas <- renderDataTable({
+      datatable(dfVariaveisEscolhidas(), extensions = "FixedColumns",
+                options = list(
+                  dom = 't',
+                  scrollX = TRUE,
+                  fixedColumns = TRUE
+                ))
+    })
+      # SAÍDAS APP: VARIÁVEIS RECORRENTES MELHORES CLUSTERS (Q3) ----
     output$dfMelhores <- renderDataTable({
       nomesVariaveis <- colnames(clusters$dfUtilizado)
       melhoresClusters <- clusters$dfMetricaClusters %>%
