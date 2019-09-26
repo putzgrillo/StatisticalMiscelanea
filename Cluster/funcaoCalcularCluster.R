@@ -96,7 +96,7 @@ funcaoCalcularClusters <- function(x, idClust, kTest = 3:12, seed = 15081991) {
   # TABELA COM CLUSTERS ----
   dfClusters <- rbind(
     data.frame(
-      Iteracao = idClust, largSil = max(largSilHCW), Modelo = "K-means", Cluster = modeloKM$cluster),
+      Iteracao = idClust, largSil = max(largSilKM), Modelo = "k-Means", Cluster = modeloKM$cluster),
     data.frame(
       Iteracao = idClust, largSil = max(largSilHCC), Modelo = "HC-Complete", Cluster = modeloHCC),
     data.frame(
@@ -107,7 +107,7 @@ funcaoCalcularClusters <- function(x, idClust, kTest = 3:12, seed = 15081991) {
   
   # GRÁFICO: SILHUETA EM FUNÇÃO DE K ----
   basePlotSilhueta <- rbind(
-    data.frame(k = kTest, largSil = largSilKM, Modelo = 'K-Means'),
+    data.frame(k = kTest, largSil = largSilKM, Modelo = 'k-Means'),
     data.frame(k = kTest, largSil = largSilHCC, Modelo = 'HC-Complete'),
     data.frame(k = kTest, largSil = largSilHCW, Modelo = 'HC-Centroide'),
     data.frame(k = kTest, largSil = largSilHCA, Modelo = 'HC-Average')
