@@ -1,6 +1,5 @@
   # QUESTÃO 2: REGRESSÃO NÃO-LINEAR ----
       # Q2: A: ----
-      # Q2: A: ----
 df2 <- within(data.frame(x = runif(n = 200, min = 2, max = 40)), {y = 60 * exp(-0.05 * x) + rnorm(n = 200)})
 
       # Q2: B: ----
@@ -15,10 +14,11 @@ gaussNewtonR <- function(f, J, X, Y, chuteInicial, convergencia = 0.00001, itera
     x1 <- x0 - solve(t(J(parametros = x0, X = X, Y = Y)) %*% J(parametros = x0, X = X, Y = Y)) %*% t(J(parametros = x0, X = X, Y = Y)) %*% f(parametros = x0, X = X, Y = Y)
     # x1 <- x0 - MASS::ginv(t(J(parametros =x1 <- x0 - solve(t(J(parametros = x0, X = X, Y = Y)) %*% J(parametros = x0, X = X, Y = Y)) %*% t(J(parametros = x0, X = X, Y = Y)) %*% f(parametros = x0, X = X, Y = Y) x0, X = X, Y = Y)) %*% J(parametros = x0, X = X, Y = Y)) %*% t(J(parametros = x0, X = X, Y = Y)) %*% f(parametros = x0, X = X, Y = Y)
     etapa <- etapa + 1
-    variacao <<-  abs(x1 - x0)
+    difErro <- sum(f(parametros = x1, X = X, Y = Y) ** 2) - sum(f(parametros = x0, X = X, Y = Y) ** 2)
     x0 <- x1
+    continuar <- abs(difErro) > convergencia
     valoresParciais[[etapa]] <- x1
-    continuar <- sum(variacao > convergencia) > 0
+    # continuar <- sum(variacao > convergencia) > 0
     if (etapa == iteracaoMaxima) {break}
   }
   resultado <- list(nIteracoes = etapa, parametros = matrix(x1, ncol = 1))
