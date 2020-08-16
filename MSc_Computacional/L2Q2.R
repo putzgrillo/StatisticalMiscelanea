@@ -14,6 +14,7 @@ jacobianaFuncaoOtimizar <- function(parametros, X, Y) {
   do.call(cbind, lista)
 }  
             # GAUSS-NEWTON
+            # GAUSS-NEWTON
 gaussNewtonR <- function(f, J, X, Y, chuteInicial, tolerancia = 0.00001, iteracaoMaxima = 500) {
   etapa <- 0
   x0 <- chuteInicial
@@ -35,6 +36,15 @@ return(resultado)
 
 
 # AVALIAÇÃO
+funcaoOtimizar <- function(parametros, X, Y) {Y - parametros[1] * exp(parametros[2] * X)}  # f = y - b0* exp(b1*x)
+jacobianaFuncaoOtimizar <- function(parametros, X, Y) {  
+  lista <- list(
+    db0 = -exp(parametros[2] * X),                                # df/db0 = -exp(b1*x)
+    db1 =  -parametros[1] * exp(parametros[2] * X) * X            # df/db1 = -b0* exp(b1*x) * x
+  )
+  do.call(cbind, lista)
+}  
+
 chutes <- expand.grid(b0 = runif(n = 300, 0, 300), b1 = runif(300, -0.15, 0.15))
 dfChutes <- vector("list", nrow(chutes))
 for (w in seq_along(dfChutes)) {
