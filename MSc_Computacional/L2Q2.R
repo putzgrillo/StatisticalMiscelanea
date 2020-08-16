@@ -18,7 +18,6 @@ gaussNewtonR <- function(f, J, X, Y, chuteInicial, convergencia = 0.00001, itera
     x0 <- x1
     continuar <- abs(difErro) > convergencia
     valoresParciais[[etapa]] <- x1
-    # continuar <- sum(variacao > convergencia) > 0
     if (etapa == iteracaoMaxima) {break}
   }
   resultado <- list(nIteracoes = etapa, parametros = matrix(x1, ncol = 1))
