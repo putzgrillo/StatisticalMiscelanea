@@ -33,3 +33,10 @@ gaussNewtonR <- function(f, J, X, Y, chuteInicial, tolerancia = 0.00001, iteraca
 return(resultado)
 }
 
+
+# AVALIAÇÃO
+chutes <- expand.grid(b0 = runif(n = 300, 0, 300), b1 = runif(300, -0.15, 0.15))
+dfChutes <- vector("list", nrow(chutes))
+for (w in seq_along(dfChutes)) {
+  dfChutes[[w]] <- gaussNewtonR(f = funcaoOtimizar, J = jacobianaFuncaoOtimizar, X = df2$x, Y = df2$y, chuteInicial = as.numeric(chutes[w,]))
+}
