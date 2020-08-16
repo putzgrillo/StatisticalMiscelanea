@@ -25,7 +25,7 @@ return(resultado)
 }
 
 
-                # AVALIAÇÃO
+# AVALIAÇÃO
 funcaoOtimizar <- function(parametros, X, Y) {Y - parametros[1] * exp(parametros[2] * X)}  # f = y - b0* exp(b1*x)
 jacobianaFuncaoOtimizar <- function(parametros, X, Y) {  
   lista <- list(
@@ -36,8 +36,9 @@ jacobianaFuncaoOtimizar <- function(parametros, X, Y) {
 } 
 
 
-chuteProximo <- c(58, -0.01)
-gaussNewtonR(f = funcaoOtimizar, J = jacobianaFuncaoOtimizar, X = df2$x, Y = df2$y, chuteInicial = chuteProximo)
+
+gaussNewtonR(f = funcaoOtimizar, J = jacobianaFuncaoOtimizar, X = df2$x, Y = df2$y, chuteInicial = c(58, -0.01))
+gaussNewtonR(f = funcaoOtimizar, J = jacobianaFuncaoOtimizar, X = df2$x, Y = df2$y, chuteInicial = c(5, 0.1))
 
 chutes <- expand.grid(b0 = runif(n = 300, 0, 300), b1 = runif(300, -0.15, 0.15))
 dfChutes <- vector("list", nrow(chutes))
@@ -78,5 +79,6 @@ gNR <- function(parametros, X, Y) {
 }
   
 
-newtonRaphson(f = fNR, g = gNR, X = df2$x, Y = df2$y, chuteInicial = c(55, -0.05))
-newtonRaphson(f = fNR, g = gNR, X = df2$x, Y = df2$y, chuteInicial = c(0, -0.05))
+newtonRaphson(f = fNR, g = gNR, X = df2$x, Y = df2$y, chuteInicial = c(55, -0.04))
+newtonRaphson(f = fNR, g = gNR, X = df2$x, Y = df2$y, chuteInicial = c(58, -0.01))
+newtonRaphson(f = fNR, g = gNR, X = df2$x, Y = df2$y, chuteInicial = c(5, 0.1))
