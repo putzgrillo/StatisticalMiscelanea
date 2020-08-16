@@ -3,17 +3,6 @@
 df2 <- within(data.frame(x = runif(n = 200, min = 2, max = 40)), {y = 60 * exp(-0.05 * x) + rnorm(n = 200)})
 
       # Q2: B: ----
-            # FUNÇÃO OBJETIVO
-funcaoOtimizar <- function(parametros, X, Y) {Y - parametros[1] * exp(parametros[2] * X)}  # f = y - b0* exp(b1*x)
-            # JACOBIANA FUNÇÃO OBJETIVO (RESÍDUOS)
-jacobianaFuncaoOtimizar <- function(parametros, X, Y) {  
-  lista <- list(
-    db0 = -exp(parametros[2] * X),                                # df/db0 = -exp(b1*x)
-    db1 =  -parametros[1] * exp(parametros[2] * X) * X            # df/db1 = -b0* exp(b1*x) * x
-  )
-  do.call(cbind, lista)
-}  
-            # GAUSS-NEWTON
             # GAUSS-NEWTON
 gaussNewtonR <- function(f, J, X, Y, chuteInicial, tolerancia = 0.00001, iteracaoMaxima = 500) {
   etapa <- 0
