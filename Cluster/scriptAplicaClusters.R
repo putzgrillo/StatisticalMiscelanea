@@ -13,7 +13,7 @@ library(combinat)
 library(caret)
 library(reshape2)
 rm(list = ls())
-setwd('Z:\\Publico\\zBruno Grillo\\Cluster')
+setwd('')
 # FUNÇÕES PRE-DEFINIDAS ----
 source('Scripts\\calcularCluster.R')
 source('Scripts\\escolherCluster.R')
@@ -24,28 +24,12 @@ seed <- 15081991
 options(encoding = "UTF-8")
 
 # BASE ----
-clnts <- readRDS("cdClntCluster.rds")
-baseR <- fread("Cluster Full 2018.csv")
-baseR <- merge(clnts, baseR, all.x = TRUE) %>%
-  arrange(Ordem) %>%
-  select(-Ordem)
+baseR <- fread("df.csv")
 baseR <- baseR %>%
   replace(is.na(.), 0) %>%
   mutate(
-    # TRANSFORMAÇÃO EXPONENCIAL 
-    LOG_RECEITA_COMPRA_ON_COM_JUROS = log(RECEITA_COMPRA_ON_COM_JUROS + 1),
-    LOG_VALOR_COMPRA_OFF = log(VALOR_COMPRA_OFF + 1),
-    LOG_VALOR_COMPRA_ON = log(VALOR_COMPRA_ON + 1),
-    LOG_RECEITA_COMPRA_OFF = log(RECEITA_COMPRA_OFF + 1),
-    LOG_RECEITA_COMPRA_OFF_COM_JUROS = log(RECEITA_COMPRA_OFF_COM_JUROS + 1),
-    LOG_RECEITA_SQRAP = log(RECEITA_SQRAP + 1),
-    LOG_RECEITA_SAQUE_CARTAO = log(RECEITA_SAQUE_CARTAO + 1),
-    LOG_VALOR_JUROS_OFF = log(VALOR_JUROS_OFF + 1),
-    LOG_VALOR_TARIFAS_OFF = log(VALOR_TARIFAS_OFF + 1),
-    LOG_VALOR_REFINANCIAMENTO_OFF = log(VALOR_REFINANCIAMENTO_OFF + 1),
-    LOG_RECEITA_TOTAL = log(RECEITA_TOTAL + 1),
-    # PROPORCOES
-    PROP_INADIMP = (VALOR_REFINANCIAMENTO_OFF + VALOR_JUROS_OFF) / (RECEITA_TOTAL + 1)
+    # BOX-COX TRANSFORMATIONS
+    # VARIABLE ENCODING
   ) %>%
   replace(is.na(.), 0) 
 
@@ -74,8 +58,8 @@ return(resultado)
 
 
 # BASE CLUSTER ----
-fixas <- c("LOG_RECEITA_COMPRA_ON_COM_JUROS", "LOG_RECEITA_COMPRA_OFF", "LOG_RECEITA_COMPRA_OFF_COM_JUROS", "LOG_RECEITA_SQRAP")
-variaveis <- c("LOG_RECEITA_SAQUE_CARTAO", "LOG_VALOR_JUROS_OFF" , "LOG_VALOR_TARIFAS_OFF", "LOG_VALOR_REFINANCIAMENTO_OFF")
+fixas <- c("VARIAVEIS_SEMPRE")
+variaveis <- c("VARIAVEIS_TESTE")
 
   # BASE CLUSTER: AJUSTAR ESCALA DAS VARIÁVEIS
 variaveisTransformar <- c(fixas, variaveis)
