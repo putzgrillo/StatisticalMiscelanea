@@ -4,6 +4,8 @@ library(ggplot2)
 library(plotly)
 library(DT)
 library(shinydashboard)
+library(caret)
+library(reshape2)
 
 options(encoding = "UTF-8")
 # LISTA CLUSTERS 
