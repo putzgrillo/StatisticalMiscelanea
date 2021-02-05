@@ -1,25 +1,7 @@
-library(tidyverse)
-library(tidymodels)
-library(finetune)
-library(vip)
-library(themis)
-
-# DATASETs ----
-  # SPLIT BETWEEN 
-df_split <- initial_split(dfRR, prop = 4/5, strata = Y)
-
-df_training <- training(df_split)
-df_test <- testing(df_split)
-
-  # RESAMPLING
-df_folds <- df_training %>%
-  vfold_cv(v = 10,
-           repeats = 1,
-           strata = Y)
-
-# PRE PROCESSING ----
+# RANDOM FORREST ----
+  # RANDOM FORREST: PRE PROCESSING (RECIPE) ----
 rf_recipe <- 
-  recipe(Y ~ ., data = dfRR) %>% 
+  recipe(Y ~ ., data = df_training) %>% 
   update_role(
     ID_CONTA, ID_FATURA, DT_VENCIMENTO, ID_STATUSCONTA, FL_EMITE_EXTRATO,
     new_role = "ID"
@@ -32,9 +14,7 @@ rf_recipe <-
   themis::step_downsample(Y)
 
 
-# MODEL
-cores <- floor(parallel::detectCores() /3)
-
+  # RANDOM FORREST: MODEL & WORKFLOW ----
 rf_model <- 
   rand_forest(
     mtry = tune(),
@@ -53,8 +33,8 @@ rf_workflow <-
   add_model(rf_model) %>% 
   add_recipe(rf_recipe)
 
-# TUNING HYPERPARAMETERS 
-    # HYPERPARAMETERS' RANGE
+  # RANDOM FORREST: TUNING HYPERPARAMETERS ----
+    # RANDOM FORREST: TUNING HYPERPARAMETERS: RANGE ----
 rf_parameters <- rf_workflow %>%
   parameters() %>%
   update(
@@ -64,18 +44,18 @@ rf_parameters <- rf_workflow %>%
     min_n = min_n(range = c(10L, 200L))
   )
 
-    # INITIAL TUNE OF HYPERPARAMETERS (BAYESIAN)
+    # RANDOM FORREST: TUNING HYPERPARAMETERS: INITIAL TUNE (BAYESIAN) ----
 tempo <- proc.time()
 rf_initial_tune <- rf_workflow %>%
   tune_bayes(object = .,
                   resamples = df_folds,
-                  initial = 5 ** length(rf_model$args),
+                  initial = n_initial_parameters * length(rf_model$args),
                   param_info = rf_parameters,
                   control = control_bayes(save_pred = TRUE),
                   metrics = metric_set(roc_auc))
 proc.time() - tempo
 
-    # SIMULATED ANNEALING TUNE
+    # RANDOM FORREST: TUNING HYPERPARAMETERS: SIMULATED ANNEALING TUNE ----
 tempo <- proc.time()
 rf_final_tune <- rf_workflow %>%
   tune_sim_anneal(object = .,
@@ -94,44 +74,50 @@ rf_final_tune <- rf_workflow %>%
 proc.time() - tempo
 
 
+    # RANDOM FORREST: MÉTRICAS DE HYPERPARAMETERS ----
+rf_df_best_hyperparameters <- rf_final_tune %>% 
+  show_best(metric = "roc_auc", n = 15)
 
-rf_final_tune %>% 
-  show_best(metric = "roc_auc")
+rf_plot_hyperparameters <- autoplot(rf_final_tune)
 
-autoplot(rf_final_tune)
-
-rf_best <- 
+rf_best_hyperparameters <- 
   rf_final_tune %>% 
   select_best(metric = "roc_auc")
 
-rf_final_model <-
+  # RANDOM FORREST: FINALIZAR FLUXO DE TRABALHO ----
+rf_best_model <-
   rf_workflow %>%
-  finalize_workflow(rf_best)
+  finalize_workflow(rf_best_hyperparameters)
 
-# IMPORTÂNCIA DE VARIÁVEIS
-rf_final_model %>%
+  # RANDOM FORREST: IMPORTÂNCIA DE VARIÁVEIS ----
+rf_var_imp <- rf_best_model %>%
   fit(data = df_training) %>%
   pull_workflow_fit() %>%
   vip()
 
-
-
-# PREVISÃO E AVALIAÇÃO NO TESTE 
-rf_fit <- rf_final_model %>%
+  # RANDOM FORREST: FIT & CONFUSION MATRIX ----
+rf_fit <- rf_best_model %>%
   last_fit(df_split)
 
 rf_test_predictions <- 
   rf_fit %>%
   collect_predictions()
 
-
-rf_test_predictions %>%
+rf_conf_matrix <- rf_test_predictions %>%
   conf_mat(truth = Y, estimate = .pred_class)
 
+rf_conf_matrix_metrics <- summary(rf_conf_matrix)
 
 
-# MODELO PARA OUTRAS PREVISÕES
-final_model <- fit(rf_final_model, dfRR)
+  # RANDOM FORREST: MODELO FINAL PARA PREVISÕES NEWDATA ----
+rf_final_model <- fit(rf_best_model, dfR)
 
-lala <- predict(final_model, dfR)
-caret::confusionMatrix(table(data.frame(REAL = dfR$Y, PREVISTO = lala$.pred_class)))
+# rf_predict <- predict(rf_final_model, dfR)
+
+  # RANDOM FORREST: SALVAR OBJETOS RELACIONADOS (EXCETO DFR) ----
+arquivos_random_forest <- ls()
+arquivos_random_forest <- arquivos_random_forest[grepl("rf_", arquivos_random_forest)]
+
+save(list = arquivos_random_forest, file = "rf_objects.RData")
+save(rf_final_model, file = "rf_modelo.RData")
+
