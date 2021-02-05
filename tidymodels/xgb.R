@@ -1,6 +1,7 @@
-# PRE PROCESSING
+# GRADIENT BOOSTING ----
+  # GRADIENT BOOSTING: PRE PROCESSING (RECIPE) ----
 xgb_recipe <- 
-  recipe(Y ~ ., data = dfRR) %>% 
+  recipe(Y ~ ., data = df_training) %>% 
   update_role(
     ID_CONTA, ID_FATURA, DT_VENCIMENTO, ID_STATUSCONTA, FL_EMITE_EXTRATO,
     new_role = "ID"
@@ -12,15 +13,9 @@ xgb_recipe <-
   # step_pca(all_predictors(), num_comp = tune()) %>%              # PCA
   themis::step_downsample(Y)
 
-# RESAMPLING
-df_folds <- df_training %>%
-  vfold_cv(v = 10,
-           repeats = 1,
-           strata = Y)
 
-# MODEL
-cores <- floor(parallel::detectCores() /3)
 
+  # GRADIENT BOOSTING: MODEL & WORKFLOW ----
 xgb_model <- 
   boost_tree(
     mtry = tune(),
@@ -42,12 +37,13 @@ xgb_workflow <-
   add_model(xgb_model) %>% 
   add_recipe(xgb_recipe)
 
-# TUNING HYPERPARAMETERS 
-# HYPERPARAMETERS' RANGE
+
+  # GRADIENT BOOSTING: TUNING HYPERPARAMETERS ----
+    # GRADIENT BOOSTING: TUNING HYPERPARAMETERS: RANGE ----
 xgb_parameters <- xgb_workflow %>%
   parameters() %>%
   update(
-    mtry = mtry(range = c(3L, 15L)),
+    mtry = mtry(range = c(10L, 50L)),
     trees = trees(range = c(1000L, 2000L)),
     min_n = min_n(range = c(10L, 200L)),
     tree_depth = tree_depth(range = c(3L, 25L)),
@@ -55,25 +51,25 @@ xgb_parameters <- xgb_workflow %>%
     loss_reduction = loss_reduction(range = c(0, 2))
   )
 
-# INITIAL TUNE OF HYPERPARAMETERS (BAYESIAN)
+    # GRADIENT BOOSTING: TUNING HYPERPARAMETERS: INITIAL TUNE (BAYESIAN) ----
 tempo <- proc.time()
 xgb_initial_tune <- xgb_workflow %>%
   tune_bayes(object = .,
              resamples = df_folds,
-             initial = 2 ** length(xgb_model$args),
+             initial = n_initial_parameters * length(xgb_model$args),
              param_info = xgb_parameters,
              control = control_bayes(save_pred = TRUE),
              metrics = metric_set(roc_auc))
 proc.time() - tempo
 
-# SIMULATED ANNEALING TUNE
+    # GRADIENT BOOSTING: TUNING HYPERPARAMETERS: SIMULATED ANNEALING TUNE ----
 tempo <- proc.time()
-nn_final_tune <- nn_workflow %>%
+xgb_final_tune <- xgb_workflow %>%
   tune_sim_anneal(object = .,
                   resamples = df_folds,
                   iter = 10,
-                  initial = nn_initial_tune,
-                  param_info = nn_parameters,
+                  initial = xgb_initial_tune,
+                  param_info = xgb_parameters,
                   control = control_sim_anneal(verbose = TRUE,
                                                no_improve = 100,
                                                restart = 8,
@@ -85,44 +81,52 @@ nn_final_tune <- nn_workflow %>%
 proc.time() - tempo
 
 
+    # GRADIENT BOOSTING: MÉTRICAS DE HYPERPARAMETERS ----
+xgb_df_best_hyperparameters <- xgb_final_tune %>% 
+  show_best(metric = "roc_auc", n = 15)
 
-nn_final_tune %>% 
-  show_best(metric = "roc_auc")
+xgb_plot_hyperparameters <- autoplot(xgb_final_tune)
 
-autoplot(nn_final_tune)
-
-nn_best <- 
-  nn_final_tune %>% 
+xgb_best_hyperparameters <- 
+  xgb_final_tune %>% 
   select_best(metric = "roc_auc")
 
-nn_final_model <-
-  nn_workflow %>%
-  finalize_workflow(nn_best)
 
-# IMPORTÂNCIA DE VARIÁVEIS
-nn_final_model %>%
+  # GRADIENT BOOSTING: FINALIZAR FLUXO DE TRABALHO ----
+xgb_best_model <-
+  xgb_workflow %>%
+  finalize_workflow(xgb_best_hyperparameters)
+
+  # GRADIENT BOOSTING: IMPORTÂNCIA DE VARIÁVEIS ----
+xgb_var_imp <- xgb_best_model %>%
   fit(data = df_training) %>%
   pull_workflow_fit() %>%
   vip()
 
-
-
-# PREVISÃO E AVALIAÇÃO NO TESTE 
-nn_fit <- nn_final_model %>%
+  # GRADIENT BOOSTING: FIT & CONFUSION MATRIX ----
+xgb_fit <- xgb_best_model %>%
   last_fit(df_split)
 
-nn_test_predictions <- 
-  nn_fit %>%
+xgb_test_predictions <- 
+  xgb_fit %>%
   collect_predictions()
 
-
-nn_test_predictions %>%
+xgb_conf_matrix <- xgb_test_predictions %>%
   conf_mat(truth = Y, estimate = .pred_class)
 
+xgb_conf_matrix_metrics <- summary(xgb_conf_matrix)
 
 
-# MODELO PARA OUTRAS PREVISÕES
-final_model <- fit(nn_final_model, dfRR)
+  # GRADIENT BOOSTING: MODELO FINAL PARA PREVISÕES NEWDATA ----
+xgb_final_model <- fit(xgb_best_model, dfR)
 
-lala <- predict(final_model, dfR)
-caret::confusionMatrix(table(data.frame(REAL = dfR$Y, PREVISTO = lala$.pred_class)))
+# xgb_predict <- predict(xgb_final_model, dfR)
+
+  # GRADIENT BOOSTING: SALVAR OBJETOS RELACIONADOS (EXCETO DFR) ----
+arquivos_gradient <- ls()
+arquivos_gradient <- arquivos_gradient[grepl("xgb_", arquivos_gradient)]
+
+save(list = arquivos_gradient, file = "xgb_objects.RData")
+save(xgb_final_model, file = "xgb_modelo.RData")
+
+
