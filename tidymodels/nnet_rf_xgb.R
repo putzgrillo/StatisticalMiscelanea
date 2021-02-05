@@ -8,32 +8,37 @@ library(xgboost)
 library(vctrs)
 
 # STRINGS ----
-cores <- floor(parallel::detectCores() / 6)
-n_initial_parameters <- 5                           # PARÂMETROS_INICIAIS = n_parametros * n_initial_parameters
+cores <- floor(parallel::detectCores() * 0.4)
+n_initial_parameters <- 25                           # PARÂMETROS_INICIAIS = n_parametros * n_initial_parameters
 
 # DIRETÓRIO E DADOS ----
-setwd("Z:\\Publico\\zBruno Grillo\\Meu Cartao\\Precificação Parcelamento")
-setwd("C:\\Users\\00690\\Desktop\\Precificação Parcelamento")
-
 dfR <- readRDS("db\\baseTreinoModelo.rds")
+
 # SELECIONAR APENAS QUEM JÁ POSSUI TRÊS MESES
 dfR <- dfR %>%
   ungroup() %>%
   filter(
-    !is.na(VL_PGTO_MEDIA)
-    & !is.na(VL_PGTO_ULTIMA)
-    & !is.na(VL_PGTO_ATUAL)
+    
   ) %>%
   mutate(
-    Y = as.factor(ifelse(TIPO_PARCELAMENTO == "NAO_ADERIU", "SEM_PARCELAMENTO", "COM_PARCELAMENTO"))
+    Y = as.factor(ifelse(OBJETIVO == "SIM", "SIM", "NAO"))
     ) %>%
   replace(is.na(.), 0)
 
 
 dfR <- dfR %>%
   select(
-    -TIPO_PGTO, -TIPO_PARCELAMENTO, -nDefasagens, -PROP_PGTO, PROP_PGTO_ULTIMA, PROP_PGTO_MEDIA, 
-    DIF_PROP_PGTO_ULTIMA_MEDIA, -VL_PGTO_ATUAL) %>%
+    ID_CONTA, ID_FATURA, DT_VENCIMENTO, ID_STATUSCONTA, FL_EMITE_EXTRATO, TIPO_CBR, TIPO_STATUS, VL_FATURA_ATUAL, 
+    VL_MINIMO_ATUAL, VL_ON_ATUAL, VL_OFF_ATUAL, QT_OFF_ATUAL, VL_ROTATIVO_ATUAL, VL_PARCELAMENTO_ATUAL, QT_PARCELAMENTO_ATUAL, 
+    VL_SQRAP_ATUAL, QT_SQRAP_ATUAL, QTD_PARCELAMENTO_LIFETIME, VL_PGTO_ULTIMA, VL_FATURA_ULTIMA, VL_ON_ULTIMA, VL_OFF_ULTIMA, 
+    VL_ROTATIVO_ULTIMA, VL_PARCELAMENTO_ULTIMA, VL_SQRAP_ULTIMA, PROP_PGTO_ULTIMA, VL_PGTO_MEDIA, VL_FATURA_MEDIA, VL_MINIMO_MEDIA, 
+    VL_ON_MEDIA, VL_OFF_MEDIA, VL_ROTATIVO_MEDIA, VL_PARCELAMENTO_MEDIA, VL_SQRAP_MEDIA, PROP_PGTO_MEDIA, DIF_VL_FATURA_ULTIMA, 
+    VZS_VL_FATURA_ULTIMA, DIF_VL_FATURA_MEDIA, VZS_VL_FATURA_MEDIA, DIF_VL_ROTATIVO_ULTIMA, VZS_VL_ROTATIVO_ULTIMA, 
+    DIF_VL_ROTATIVO_MEDIA, VZS_VL_ROTATIVO_MEDIA, DIF_VL_ON_ULTIMA, VZS_VL_ON_ULTIMA, DIF_VL_ON_MEDIA, VZS_VL_ON_MEDIA, 
+    DIF_VL_OFF_ULTIMA, VZS_VL_OFF_ULTIMA, DIF_VL_OFF_MEDIA, VZS_VL_OFF_MEDIA, DIF_VL_SQRAP_ULTIMA, VZS_VL_SQRAP_ULTIMA, 
+    DIF_VL_SQRAP_MEDIA, VZS_VL_SQRAP_MEDIA, DIF_VL_PARCELAMENTO_ULTIMA, VZS_VL_PARCELAMENTO_ULTIMA, DIF_VL_PARCELAMENTO_MEDIA, 
+    VZS_VL_PARCELAMENTO_MEDIA, DIF_PROP_PGTO_ULTIMA_MEDIA, Y
+    ) %>%
   group_by(Y) %>%
   sample_n(30000)
 
@@ -171,9 +176,12 @@ rf_final_model <- fit(rf_best_model, dfR)
 
 # rf_predict <- predict(rf_final_model, dfR)
 
+  # RANDOM FORREST: SALVAR OBJETOS RELACIONADOS (EXCETO DFR) ----
+arquivos_random_forest <- ls()
+arquivos_random_forest <- arquivos_random_forest[grepl("rf_", arquivos_random_forest)]
 
-
-
+save(list = arquivos_random_forest, file = "rf_objects.RData")
+save(rf_final_model, file = "rf_modelo.RData")
 
 #####
 #####
@@ -299,7 +307,14 @@ xgb_conf_matrix_metrics <- summary(xgb_conf_matrix)
   # GRADIENT BOOSTING: MODELO FINAL PARA PREVISÕES NEWDATA ----
 xgb_final_model <- fit(xgb_best_model, dfR)
 
-xgb_predict <- predict(xgb_final_model, dfR)
+# xgb_predict <- predict(xgb_final_model, dfR)
+
+  # GRADIENT BOOSTING: SALVAR OBJETOS RELACIONADOS (EXCETO DFR) ----
+arquivos_gradient <- ls()
+arquivos_gradient <- arquivos_gradient[grepl("xgb_", arquivos_gradient)]
+
+save(list = arquivos_gradient, file = "xgb_objects.RData")
+save(xgb_final_model, file = "xgb_modelo.RData")
 
 
 #####
@@ -424,15 +439,54 @@ nn_final_model <- fit(nn_best_model, dfR)
 
 nn_predict <- predict(nn_final_model, dfR)
 
+  # NEURAL NETWORKS: SALVAR OBJETOS RELACIONADOS (EXCETO DFR) ----
+arquivos_neuralnet <- ls()
+arquivos_neuralnet <- arquivos_neuralnet[grepl("nn_", arquivos_neuralnet)]
+
+save(list = arquivos_neuralnet, file = "nn_objects.RData")
+save(nn_final_model, file = "nn_modelo.RData")
 
 
 ####
 ####
+# MODELO VENCEDOR ----
+df_comparacao <- data.frame(
+  Metodo = c("rf", "nnet", "xgb"),
+  Sensitivity = c(
+    rf_conf_matrix_metrics$.estimate[3],
+    nn_conf_matrix_metrics$.estimate[3],
+    xgb_conf_matrix_metrics$.estimate[3]
+  )
+)
 
+vencedor <- df_comparacao$Metodo[which.max(df_comparacao$Sensitivity)]
+
+if (vencedor == "nnet") {save(nn_final_model, file = "melhor_modelo.RData")}
+if (vencedor == "rf") {save(rf_final_model, file = "melhor_modelo.RData")}
+if (vencedor == "xgb") {save(xgb_final_model, file = "melhor_modelo.RData")}
+
+save.image(file = "ls_completo.RData", compress = FALSE)
 
 # COMPARAR RESULTADO DOS DIFERENTES MODELOS ----
 proc.time() - t_total
 
-# SALVAR LS ----
-save.image("ls_competicao.RData")
+
+  # COMPARAR RESULTADO DOS DIFERENTES MODELOS: RADAR PLOT ----
+
+load("rf_objects.RData")
+load("nn_objects.RData")
+load("xgb_objects.RData")
+
+list(
+  nnet = nn_conf_matrix_metrics,
+  rf = rf_conf_matrix_metrics,
+  xgb = xgb_conf_matrix_metrics
+) %>%
+  bind_rows(.id = "Metodo") %>%
+  filter(.metric %in% c("accuracy", "bal_accuracy", "sens", "spec", "recall", "precision")) %>%
+  ggplot(., aes(x = .metric, y = .estimate, group = Metodo, colour = Metodo)) +
+    geom_point(size = 3) +
+    geom_line() +
+    coord_polar() +
+    theme_bw()
 
