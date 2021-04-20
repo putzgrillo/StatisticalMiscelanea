@@ -149,3 +149,73 @@ plot(GDPirf, ylab = "GDP", main = "GDP's shock to GDP")
 
 FEVD1 <- fevd(Model1VAR, n.ahead = 10)
 plot(FEVD1)
+
+
+
+
+
+
+# FUNCAO VAR
+funcao_vec_var <- function(df_var) {
+  # TESTE ESTACIONARIEDADE
+  teste_estacionariedade <- df_var %>%
+    lapply(., function (y) {data.frame(p.valor = tseries::adf.test(y)$p.value)}) %>%
+    bind_rows(.id = "variavel") %>%
+    mutate(Estacionario = if_else(p.valor > 0.05, FALSE, TRUE))
+  
+  # SE FOR ESTACIONÁRIO, IR DIRETO PARA VAR, POIS NÃO HÁ COINTEGRAÇÃO I(0)
+  testar_coint <- !all(teste_estacionariedade$Estacionario)
+  if (testar_coint) {
+    ordens_var <- unique(VARselect(df_var, lag.max = 10, type = "const")$selection)
+    lista_lags <- vector("list", length(ordem_cointegracao))
+    
+    for (y in seq_along(lista_lags)) {
+      
+    }
+  }
+  
+  df_var <- df_var %>%
+    mutate(
+      
+    )
+  
+}
+
+
+
+
+
+
+# Q3: DETERMINAR O LAG ÓTIMO PARA VAR (P - 1) ----
+n_lags <- VARselect(df_var, lag.max = 10, type = "const")
+n_aic <- n_lags$selection[1]
+
+lags_testar <- unique(n_lags$selection)
+list_lags <- vector("list", length(lags_testar))
+
+for (w in seq_along(list_lags)) {
+    # TESTE DE COINTEGRAÇÃO
+  teste_cointegracao <- ca.jo(df_var, ecdet = "const", K = lags_testar[w])
+  sumario_cointegracao <- summary(teste_cointegracao)
+  df_cointegracao <- data.frame(id = seq(3, 0), 
+                                estatistica = sumario_cointegracao@teststat, 
+                                sumario_cointegracao@cval)
+  ordem_cointegracao <- min(df_cointegracao$id[df_cointegracao$estatistica > df_cointegracao$X5pct])
+  
+    # VAR OU VEC (CONDICIONADO A ORDEM DE COINTEGRAÇÃO) 
+  if (ordem_cointegracao > 0) {
+    modelo_vec <- cajools(teste_cointegracao, r = ordem_cointegracao)           # MODELO VEC PURO
+    modelo_vec_as_var <- vec2var(teste_cointegracao, r = ordem_cointegracao)    # VEC ESCRITO COMO VAR
+    modelo_var <- modelo_vec_as_var
+  } else {
+    modelo_var <- VAR(df_var, p = lags_testar[w])
+  }
+  
+    # AUTOCORRELAÇÃO RESIDUAL
+  teste_ac_residual <- serial.test(modelo_var)
+    # ERROS ARCH
+  teste_arch <- arch.test(modelo_var)
+    # NORMALIDADE RESIDUAL
+  teste_normalidade <- normality.test(modelo_var)
+}
+
