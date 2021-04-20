@@ -86,7 +86,7 @@ ggplot(df, aes(x = ref.date, y = price.dif, group = ticker, colour = ticker)) +
   scale_x_date(breaks = scales::breaks_pretty(n = 10)) +
   theme_bw()
 
-# TESTES DE ESTACIONARIEDADE ----
+# Q3: TESTES DE ESTACIONARIEDADE ----
 df %>%
   split(., f = list(.$ticker)) %>%
   lapply(., function(x) {
@@ -103,4 +103,49 @@ df %>%
   View()
 
 
- # 
+# Q3: DETERMINAR O LAG ÓTIMO PARA VAR (P - 1) ----
+n_lags <- VARselect(df_var, lag.max = 10, type = "const")
+n_aic <- n_lags$selection[1]
+
+# Q3: VERIFICAR COINTEGRAÇÃO ----
+teste_cointegracao <- ca.jo(df_var, ecdet = "const", K = n_aic)
+summary(teste_cointegracao)
+
+  # Q3: VERIFICAR COINTEGRAÇÃO: CASO HAJA ---
+modelo_vec <- cajools(teste_cointegracao, r = 1) # INCLUIR ORDEM DE COINTEGRAÇÃO
+summary(modelo_vec)
+modelo_vec_as_var <- vec2var(ctest1t, r = 1)
+
+  # Q3: VERIFICAR COINTEGRAÇÃO: CASO NÃO HAJA ----
+modelo_var <- VAR(df_var, p = n_aic)
+summary(modelo_var)
+
+# Q3: AVALIAÇÃO DO MODELO ----
+  # Q3: AVALIAÇÃO DO MODELO: AUTOCORRELAÇÃO RESIDUAL ----
+teste_ac_residual <- serial.test(modelo_var)
+teste_ac_residual                           # p-value < 0.05, autocorrelacionado
+
+  # Q3: AVALIAÇÃO DO MODELO: HETEROSCEDASTICIDADE CONDICIONAL ARCH ----
+teste_arch <- arch.test(modelo_var)
+teste_arch                                  # p-value < 0.05, efeito arch
+
+  # Q3: AVALIAÇÃO DO MODELO: NORMALIDADE RESIDUAL ----
+teste_normalidade <- normality.test(modelo_var)
+teste_normalidade                           # p-value < 0.05, não-normalidade
+
+  # Q3: AVALIAÇÃO DO MODELO: IMPULSO RESPSOTA ----
+
+
+M3irf <- irf(Model1VAR, impulse = "GDP", response = "M3", n.ahead = 20, boot = TRUE)
+plot(M3irf, ylab = "M3", main = "GDP's shock to M3")
+
+CPIirf <- irf(Model1VAR, impulse = "GDP", response = "CPI", n.ahead = 20, boot = TRUE)
+plot(CPIirf, ylab = "CPI", main = "GDP's shock to CPI")
+
+GDPirf <- irf(Model1VAR, impulse = "GDP", response = "GDP", n.ahead = 20, boot = TRUE)
+plot(GDPirf, ylab = "GDP", main = "GDP's shock to GDP")
+
+#Variance Decomposition
+
+FEVD1 <- fevd(Model1VAR, n.ahead = 10)
+plot(FEVD1)
